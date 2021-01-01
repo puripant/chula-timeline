@@ -84,6 +84,15 @@ let levels = [
   ]
 ]
 
+d3.csv("data.csv").then((data) => {
+d3.csv("colors.csv").then((colors) => {
+  let faculties = colors.map(d => d.faculty)
+  colors = colors.map(d => d.rgb)
+
+  console.log(faculties, colors)
+})
+})
+
 // precompute level depth
 levels.forEach((l,i) => l.forEach(n => n.level = i))
 
@@ -219,7 +228,35 @@ let layout = {
   metro_d
 }
 
+console.log(levels, nodes, links, bundles)
+
 let svg = d3.select('svg');
+
+let append_path = (d, color, width) => {
+  svg.append("path")
+    .classed("link", true)
+    .attr("d", d)
+    .style("stroke", color)
+    .style("stroke-width", width)
+}
+let append_line = (xy1, xy2, color, width) => {
+  svg.append("line")
+    .classed("node", true)
+    .attr("x1", xy1[0])
+    .attr("y1", xy1[1])
+    .attr("x2", xy2[0])
+    .attr("y2", xy2[1])
+    .style("stroke", color)
+    .style("stroke-width", width)
+}
+let append_text = (xy, text, color, width) => {
+  svg.append("text")
+    .attr("x", xy[0])
+    .attr("y", xy[1])
+    .style("stroke", color)
+    .style("stroke-width", width)
+    .text(text)
+}
 
 bundles.forEach(b => {
   let d = b.links.map(l => `
@@ -231,44 +268,17 @@ bundles.forEach(b => {
     L${ l.xs } ${ l.ys }`
   ).join("");
 
-  svg.append("path")
-    .classed("link", true)
-    .attr("d", d)
-    .style("stroke", "white")
-    .style("stroke-width", 5)
-  svg.append("path")
-    .classed("link", true)
-    .attr("d", d)
-    .style("stroke", color(b.id))
-    .style("stroke-width", 2)
+  append_path(d, "white", 5)
+  append_path(d, color(b.id), 2)
 })
 
 nodes.map(n => {
-  svg.append("line")
-    .classed("node", true)
-    .attr("x1", n.x)
-    .attr("y1", n.y-n.height/2)
-    .attr("x2", n.x)
-    .attr("y2", n.y+n.height/2)
-    .style("stroke", "black")
-    .style("stroke-width", 8)
-  svg.append("line")
-    .classed("node", true)
-    .attr("x1", n.x)
-    .attr("y1", n.y-n.height/2)
-    .attr("x2", n.x)
-    .attr("y2", n.y+n.height/2)
-    .style("stroke", "white")
-    .style("stroke-width", 4)
+  let xy1 = [n.x, n.y-n.height/2]
+  let xy2 = [n.x, n.y+n.height/2]
+  append_line(xy1, xy2, "black", 8)
+  append_line(xy1, xy2, "white", 4)
 
-  svg.append("text")
-    .attr("x", n.x+4)
-    .attr("y", n.y-n.height/2-4)
-    .style("stroke", "white")
-    .style("stroke-width", 2)
-    .text(n.id)
-  svg.append("text")
-    .attr("x", n.x+4)
-    .attr("y", n.y-n.height/2-4)
-    .text(n.id)
+  let xy = [n.x+4, n.y-n.height/2-4]
+  append_text(xy, n.id, "white", 2)
+  append_text(xy, n.id, "black", 0)
 })
