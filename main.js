@@ -1,7 +1,5 @@
 // Adapted from https://observablehq.com/@nitaku/tangled-tree-visualization-ii
 
-let color = d3.scaleOrdinal(d3.schemeDark2)
-
 let levels = [
   [{id: 'Chaos'}],
   [
@@ -89,196 +87,197 @@ d3.csv("colors.csv").then((colors) => {
   let faculties = colors.map(d => d.faculty)
   colors = colors.map(d => d.rgb)
 
-  console.log(faculties, colors)
-})
-})
+  let color_scale = d3.scaleOrdinal(colors);
 
-// precompute level depth
-levels.forEach((l,i) => l.forEach(n => n.level = i))
+  // precompute level depth
+  levels.forEach((l,i) => l.forEach(n => n.level = i))
 
-let nodes = levels.reduce( ((a,x) => a.concat(x)), [] )
-let nodes_index = {}
-nodes.forEach(d => nodes_index[d.id] = d)
+  let nodes = levels.reduce( ((a,x) => a.concat(x)), [] )
+  let nodes_index = {}
+  nodes.forEach(d => nodes_index[d.id] = d)
 
-// objectification
-nodes.forEach(d => {
-  d.parents = (d.parents === undefined ? [] : d.parents).map(p => nodes_index[p])
-})
+  // objectification
+  nodes.forEach(d => {
+    d.parents = (d.parents === undefined ? [] : d.parents).map(p => nodes_index[p])
+  })
 
-// precompute bundles
-levels.forEach((l, i) => {
-  let index = {}
-  l.forEach(n => {
-    if(n.parents.length == 0) {
-      return
+  // precompute bundles
+  levels.forEach((l, i) => {
+    let index = {}
+    l.forEach(n => {
+      if(n.parents.length == 0) {
+        return
+      }
+      
+      let id = n.parents.map(d => d.id).sort().join('--')
+      if (id in index) {
+        index[id].parents = index[id].parents.concat(n.parents)
+      }
+      else {
+        index[id] = {id: id, parents: n.parents.slice(), level: i}
+      }
+      n.bundle = index[id]
+    })
+    l.bundles = Object.keys(index).map(k => index[k])
+    l.bundles.forEach((b, i) => b.i = i)
+  })
+
+  let links = []
+  nodes.forEach(d => {
+    d.parents.forEach(p => links.push({source: d, bundle: d.bundle, target: p}))
+  })
+
+  let bundles = levels.reduce( ((a,x) => a.concat(x.bundles)), [] )
+
+  // reverse pointer from parent to bundles
+  bundles.forEach(b => b.parents.forEach(p => {
+    if(p.bundles_index === undefined) {
+      p.bundles_index = {}
     }
-    
-    let id = n.parents.map(d => d.id).sort().join('--')
-    if (id in index) {
-      index[id].parents = index[id].parents.concat(n.parents)
+    if(!(b.id in p.bundles_index)) {
+      p.bundles_index[b.id] = [] 
+    }
+    p.bundles_index[b.id].push(b)
+  }))
+
+  nodes.forEach(n => {
+    if(n.bundles_index !== undefined) {
+      n.bundles = Object.keys(n.bundles_index).map(k => n.bundles_index[k])
     }
     else {
-      index[id] = {id: id, parents: n.parents.slice(), level: i}
+      n.bundles_index = {}
+      n.bundles = []
     }
-    n.bundle = index[id]
+    n.bundles.forEach((b, i) => b.i = i)
   })
-  l.bundles = Object.keys(index).map(k => index[k])
-  l.bundles.forEach((b, i) => b.i = i)
-})
 
-let links = []
-nodes.forEach(d => {
-  d.parents.forEach(p => links.push({source: d, bundle: d.bundle, target: p}))
-})
+  links.forEach(l => {
+    if(l.bundle.links === undefined) {
+      l.bundle.links = []
+    }
+    l.bundle.links.push(l)
+  })
 
-let bundles = levels.reduce( ((a,x) => a.concat(x.bundles)), [] )
+  // layout
+  const padding = 8
+  const node_height = 22
+  const node_width = 70
+  const bundle_width = 14
+  const level_y_padding = 16
+  const metro_d = 4
+  const c = 16
+  const min_family_height = 16
 
-// reverse pointer from parent to bundles
-bundles.forEach(b => b.parents.forEach(p => {
-  if(p.bundles_index === undefined) {
-    p.bundles_index = {}
-  }
-  if(!(b.id in p.bundles_index)) {
-    p.bundles_index[b.id] = [] 
-  }
-  p.bundles_index[b.id].push(b)
-}))
+  nodes.forEach(n => n.height = (Math.max(1, n.bundles.length)-1)*metro_d)
 
-nodes.forEach(n => {
-  if(n.bundles_index !== undefined) {
-    n.bundles = Object.keys(n.bundles_index).map(k => n.bundles_index[k])
-  }
-  else {
-    n.bundles_index = {}
-    n.bundles = []
-  }
-  n.bundles.forEach((b, i) => b.i = i)
-})
+  let x_offset = padding
+  let y_offset = padding
+  levels.forEach(l => {
+    x_offset += l.bundles.length*bundle_width
+    y_offset += level_y_padding
+    l.forEach((n, i) => {
+      n.x = n.level*node_width + x_offset
+      n.y = node_height + y_offset + n.height/2
+      
+      y_offset += node_height + n.height
+    })
+  })
 
-links.forEach(l => {
-  if(l.bundle.links === undefined) {
-    l.bundle.links = []
-  }
-  l.bundle.links.push(l)
-})
-
-// layout
-const padding = 8
-const node_height = 22
-const node_width = 70
-const bundle_width = 14
-const level_y_padding = 16
-const metro_d = 4
-const c = 16
-const min_family_height = 16
-
-nodes.forEach(n => n.height = (Math.max(1, n.bundles.length)-1)*metro_d)
-
-let x_offset = padding
-let y_offset = padding
-levels.forEach(l => {
-  x_offset += l.bundles.length*bundle_width
-  y_offset += level_y_padding
-  l.forEach((n, i) => {
-    n.x = n.level*node_width + x_offset
-    n.y = node_height + y_offset + n.height/2
+  let i = 0
+  levels.forEach(l => {
+    l.bundles.forEach(b => {
+      b.x = b.parents[0].x + node_width + (l.bundles.length-1-b.i)*bundle_width
+      b.y = i*node_height
+    })
+    i += l.length
+  })
     
-    y_offset += node_height + n.height
+  links.forEach(l => {
+    l.xt = l.target.x
+    l.yt = l.target.y + l.target.bundles_index[l.bundle.id].i*metro_d - l.target.bundles.length*metro_d/2 + metro_d/2
+    l.xb = l.bundle.x
+    l.xs = l.source.x
+    l.ys = l.source.y
   })
-})
 
-let i = 0
-levels.forEach(l => {
-  l.bundles.forEach(b => {
-    b.x = b.parents[0].x + node_width + (l.bundles.length-1-b.i)*bundle_width
-    b.y = i*node_height
+  // compress vertical space
+  let y_negative_offset = 0
+  levels.forEach(l => {
+    y_negative_offset += -min_family_height + d3.min(l.bundles, b => d3.min(b.links, link => (link.ys-c)-(link.yt+c))) || 0
+    l.forEach(n => n.y -= y_negative_offset)
   })
-  i += l.length
+
+  // very ugly, I know
+  links.forEach(l => {
+    l.yt = l.target.y + l.target.bundles_index[l.bundle.id].i*metro_d - l.target.bundles.length*metro_d/2 + metro_d/2
+    l.ys = l.source.y
+    l.c1 = l.source.level-l.target.level > 1 ? node_width+c : c
+    l.c2 = c
+  })
+
+  let layout = {
+    height: d3.max(nodes, n => n.y) + node_height/2 + 2*padding,
+    node_height,
+    node_width,
+    bundle_width,
+    level_y_padding,
+    metro_d
+  }
+
+  console.log(levels, nodes, links, bundles)
+
+  let svg = d3.select('svg');
+
+  let append_path = (d, color, width) => {
+    svg.append("path")
+      .classed("link", true)
+      .attr("d", d)
+      .style("stroke", color)
+      .style("stroke-width", width)
+  }
+  let append_line = (xy1, xy2, color, width) => {
+    svg.append("line")
+      .classed("node", true)
+      .attr("x1", xy1[0])
+      .attr("y1", xy1[1])
+      .attr("x2", xy2[0])
+      .attr("y2", xy2[1])
+      .style("stroke", color)
+      .style("stroke-width", width)
+  }
+  let append_text = (xy, text, color, width) => {
+    svg.append("text")
+      .attr("x", xy[0])
+      .attr("y", xy[1])
+      .style("stroke", color)
+      .style("stroke-width", width)
+      .text(text)
+  }
+
+  bundles.forEach(b => {
+    let d = b.links.map(l => `
+      M${ l.xt } ${ l.yt }
+      L${ l.xb-l.c1 } ${ l.yt }
+      A${ l.c1 } ${ l.c1 } 90 0 1 ${ l.xb } ${ l.yt+l.c1 }
+      L${ l.xb } ${ l.ys-l.c2 }
+      A${ l.c2 } ${ l.c2 } 90 0 0 ${ l.xb+l.c2 } ${ l.ys }
+      L${ l.xs } ${ l.ys }`
+    ).join("");
+    
+    append_path(d, color_scale(b.id) === "#FFFFFF" ? "gainsboro" : "white", 5)
+    append_path(d, color_scale(b.id), 2)
+  })
+
+  nodes.map(n => {
+    let xy1 = [n.x, n.y-n.height/2]
+    let xy2 = [n.x, n.y+n.height/2]
+    append_line(xy1, xy2, "black", 8)
+    append_line(xy1, xy2, "white", 4)
+
+    let xy = [n.x+4, n.y-n.height/2-4]
+    append_text(xy, n.id, "white", 2)
+    append_text(xy, n.id, "black", 0)
+  })
+
 })
-  
-links.forEach(l => {
-  l.xt = l.target.x
-  l.yt = l.target.y + l.target.bundles_index[l.bundle.id].i*metro_d - l.target.bundles.length*metro_d/2 + metro_d/2
-  l.xb = l.bundle.x
-  l.xs = l.source.x
-  l.ys = l.source.y
-})
-
-// compress vertical space
-let y_negative_offset = 0
-levels.forEach(l => {
-  y_negative_offset += -min_family_height + d3.min(l.bundles, b => d3.min(b.links, link => (link.ys-c)-(link.yt+c))) || 0
-  l.forEach(n => n.y -= y_negative_offset)
-})
-
-// very ugly, I know
-links.forEach(l => {
-  l.yt = l.target.y + l.target.bundles_index[l.bundle.id].i*metro_d - l.target.bundles.length*metro_d/2 + metro_d/2
-  l.ys = l.source.y
-  l.c1 = l.source.level-l.target.level > 1 ? node_width+c : c
-  l.c2 = c
-})
-
-let layout = {
-  height: d3.max(nodes, n => n.y) + node_height/2 + 2*padding,
-  node_height,
-  node_width,
-  bundle_width,
-  level_y_padding,
-  metro_d
-}
-
-console.log(levels, nodes, links, bundles)
-
-let svg = d3.select('svg');
-
-let append_path = (d, color, width) => {
-  svg.append("path")
-    .classed("link", true)
-    .attr("d", d)
-    .style("stroke", color)
-    .style("stroke-width", width)
-}
-let append_line = (xy1, xy2, color, width) => {
-  svg.append("line")
-    .classed("node", true)
-    .attr("x1", xy1[0])
-    .attr("y1", xy1[1])
-    .attr("x2", xy2[0])
-    .attr("y2", xy2[1])
-    .style("stroke", color)
-    .style("stroke-width", width)
-}
-let append_text = (xy, text, color, width) => {
-  svg.append("text")
-    .attr("x", xy[0])
-    .attr("y", xy[1])
-    .style("stroke", color)
-    .style("stroke-width", width)
-    .text(text)
-}
-
-bundles.forEach(b => {
-  let d = b.links.map(l => `
-    M${ l.xt } ${ l.yt }
-    L${ l.xb-l.c1 } ${ l.yt }
-    A${ l.c1 } ${ l.c1 } 90 0 1 ${ l.xb } ${ l.yt+l.c1 }
-    L${ l.xb } ${ l.ys-l.c2 }
-    A${ l.c2 } ${ l.c2 } 90 0 0 ${ l.xb+l.c2 } ${ l.ys }
-    L${ l.xs } ${ l.ys }`
-  ).join("");
-
-  append_path(d, "white", 5)
-  append_path(d, color(b.id), 2)
-})
-
-nodes.map(n => {
-  let xy1 = [n.x, n.y-n.height/2]
-  let xy2 = [n.x, n.y+n.height/2]
-  append_line(xy1, xy2, "black", 8)
-  append_line(xy1, xy2, "white", 4)
-
-  let xy = [n.x+4, n.y-n.height/2-4]
-  append_text(xy, n.id, "white", 2)
-  append_text(xy, n.id, "black", 0)
 })
