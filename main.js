@@ -1,94 +1,20 @@
-// Adapted from https://observablehq.com/@nitaku/tangled-tree-visualization-ii
-
-let levels = [
-  [{id: 'Chaos'}],
-  [
-    {id: 'Gaea', parents: ['Chaos']},
-    {id: 'Uranus'}
-  ],
-  [
-    {id: 'Oceanus', parents: ['Gaea', 'Uranus']},
-    {id: 'Thethys', parents: ['Gaea', 'Uranus']},
-    {id: 'Pontus'},
-    {id: 'Rhea', parents: ['Gaea', 'Uranus']},
-    {id: 'Cronus', parents: ['Gaea', 'Uranus']},
-    {id: 'Coeus', parents: ['Gaea', 'Uranus']},
-    {id: 'Phoebe', parents: ['Gaea', 'Uranus']},
-    {id: 'Crius', parents: ['Gaea', 'Uranus']},
-    {id: 'Hyperion', parents: ['Gaea', 'Uranus']},
-    {id: 'Iapetus', parents: ['Gaea', 'Uranus']},
-    {id: 'Thea', parents: ['Gaea', 'Uranus']},
-    {id: 'Themis', parents: ['Gaea', 'Uranus']},
-    {id: 'Mnemosyne', parents: ['Gaea', 'Uranus']}
-  ],
-  [
-    {id: 'Doris', parents: ['Oceanus', 'Thethys']},
-    {id: 'Neures', parents: ['Pontus', 'Gaea']},
-    {id: 'Dionne'},
-    {id: 'Demeter', parents: ['Rhea', 'Cronus']},
-    {id: 'Hades', parents: ['Rhea', 'Cronus']},
-    {id: 'Hera', parents: ['Rhea', 'Cronus']},
-    {id: 'Alcmene'},
-    {id: 'Zeus', parents: ['Rhea', 'Cronus']},
-    {id: 'Eris'},
-    {id: 'Leto', parents: ['Coeus', 'Phoebe']},
-    {id: 'Amphitrite'},
-    {id: 'Medusa'},
-    {id: 'Poseidon', parents: ['Rhea', 'Cronus']},
-    {id: 'Hestia', parents: ['Rhea', 'Cronus']}
-  ],
-  [
-    {id: 'Thetis', parents: ['Doris', 'Neures']},
-    {id: 'Peleus'},
-    {id: 'Anchises'},
-    {id: 'Adonis'},
-    {id: 'Aphrodite', parents: ['Zeus', 'Dionne']},
-    {id: 'Persephone', parents: ['Zeus', 'Demeter']},
-    {id: 'Ares', parents: ['Zeus', 'Hera']},
-    {id: 'Hephaestus', parents: ['Zeus', 'Hera']},
-    {id: 'Hebe', parents: ['Zeus', 'Hera']},
-    {id: 'Hercules', parents: ['Zeus', 'Alcmene']},
-    {id: 'Megara'},
-    {id: 'Deianira'},
-    {id: 'Eileithya', parents: ['Zeus', 'Hera']},
-    {id: 'Ate', parents: ['Zeus', 'Eris']},
-    {id: 'Leda'},
-    {id: 'Athena', parents: ['Zeus']},
-    {id: 'Apollo', parents: ['Zeus', 'Leto']},
-    {id: 'Artemis', parents: ['Zeus', 'Leto']},
-    {id: 'Triton', parents: ['Poseidon', 'Amphitrite']},
-    {id: 'Pegasus', parents: ['Poseidon', 'Medusa']},
-    {id: 'Orion', parents: ['Poseidon']},
-    {id: 'Polyphemus', parents: ['Poseidon']}
-  ],
-  [
-    {id: 'Deidamia'},
-    {id: 'Achilles', parents: ['Peleus', 'Thetis']},
-    {id: 'Creusa'},
-    {id: 'Aeneas', parents: ['Anchises', 'Aphrodite']},
-    {id: 'Lavinia'},
-    {id: 'Eros', parents: ['Hephaestus', 'Aphrodite']},
-    {id: 'Helen', parents: ['Leda', 'Zeus']},
-    {id: 'Menelaus'},
-    {id: 'Polydueces', parents: ['Leda', 'Zeus']}
-  ],
-  [
-    {id: 'Andromache'},
-    {id: 'Neoptolemus', parents: ['Deidamia', 'Achilles']},
-    {id: 'Aeneas(2)', parents: ['Creusa', 'Aeneas']},
-    {id: 'Pompilius', parents: ['Creusa', 'Aeneas']},
-    {id: 'Iulus', parents: ['Lavinia', 'Aeneas']},
-    {id: 'Hermione', parents: ['Helen', 'Menelaus']}
-  ]
-]
+const color_key = (key) => key.split(" ")[0]
 
 d3.csv("data.csv").then((data) => {
 d3.csv("colors.csv").then((colors) => {
   let faculties = colors.map(d => d.faculty)
   colors = colors.map(d => d.rgb)
 
-  let color_scale = d3.scaleOrdinal(colors);
+  let color_scale = d3.scaleOrdinal(faculties, colors).unknown("#000000");
 
+  data = data.filter(d => d.type != "context")
+  data.sort((a, b) => +a.year - +b.year)
+  data = Array.from(d3.group(data, d => d.year), ([key, value]) => value)
+  let levels = data.map(year => {
+    return Array.from(d3.group(year, d => d.to), ([key, value]) => ({id: value[0].to, parents: value.map(d => d.from)}))
+  })
+
+  // Adapted from https://observablehq.com/@nitaku/tangled-tree-visualization-ii
   // precompute level depth
   levels.forEach((l,i) => l.forEach(n => n.level = i))
 
@@ -98,8 +24,10 @@ d3.csv("colors.csv").then((colors) => {
 
   // objectification
   nodes.forEach(d => {
-    d.parents = (d.parents === undefined ? [] : d.parents).map(p => nodes_index[p])
+    d.parents = (d.parents === undefined || d.parents[0] === "" ? [] : d.parents).map(p => nodes_index[p])
   })
+
+  console.log(levels)
 
   // precompute bundles
   levels.forEach((l, i) => {
@@ -112,8 +40,7 @@ d3.csv("colors.csv").then((colors) => {
       let id = n.parents.map(d => d.id).sort().join('--')
       if (id in index) {
         index[id].parents = index[id].parents.concat(n.parents)
-      }
-      else {
+      } else {
         index[id] = {id: id, parents: n.parents.slice(), level: i}
       }
       n.bundle = index[id]
@@ -200,12 +127,12 @@ d3.csv("colors.csv").then((colors) => {
     l.ys = l.source.y
   })
 
-  // compress vertical space
-  let y_negative_offset = 0
-  levels.forEach(l => {
-    y_negative_offset += -min_family_height + d3.min(l.bundles, b => d3.min(b.links, link => (link.ys-c)-(link.yt+c))) || 0
-    l.forEach(n => n.y -= y_negative_offset)
-  })
+  // // compress vertical space
+  // let y_negative_offset = 0
+  // levels.forEach(l => {
+  //   y_negative_offset += -min_family_height + d3.min(l.bundles, b => d3.min(b.links, link => (link.ys-c)-(link.yt+c))) || 0
+  //   l.forEach(n => n.y -= y_negative_offset)
+  // })
 
   // very ugly, I know
   links.forEach(l => {
@@ -215,18 +142,10 @@ d3.csv("colors.csv").then((colors) => {
     l.c2 = c
   })
 
-  let layout = {
-    height: d3.max(nodes, n => n.y) + node_height/2 + 2*padding,
-    node_height,
-    node_width,
-    bundle_width,
-    level_y_padding,
-    metro_d
-  }
-
-  console.log(levels, nodes, links, bundles)
-
-  let svg = d3.select('svg');
+  const height = d3.max(nodes, n => n.y) + node_height/2 + 2*padding
+  let svg = d3.select('svg')
+    .attr("width", 2500)
+    .attr("height", height)
 
   let append_path = (d, color, width) => {
     svg.append("path")
@@ -245,14 +164,24 @@ d3.csv("colors.csv").then((colors) => {
       .style("stroke", color)
       .style("stroke-width", width)
   }
-  let append_text = (xy, text, color, width) => {
+  let append_text = (xy, text, color, width, text_color) => {
     svg.append("text")
       .attr("x", xy[0])
       .attr("y", xy[1])
       .style("stroke", color)
       .style("stroke-width", width)
+      .style("fill", text_color ? text_color : "black")
       .text(text)
   }
+  let append_node = (xy1, xy2, text, color) => {
+    append_line(xy1, xy2, color === "#FFFFFF" ? "gainsboro" : "white", 12)
+    append_line(xy1, xy2, color, 8)
+    append_text([xy1[0]+6, xy1[1]-4], text, "white", 3)
+    append_text([xy1[0]+6, xy1[1]-4], text, "black", 0)
+  }
+
+  append_line([node_width*5, 0], [node_width*5, height], "gainsboro", 10)
+  append_text([node_width*5 + 10, 20], "การปฏิวัติสยาม", "gainsboro", 0, "gray")
 
   bundles.forEach(b => {
     let d = b.links.map(l => `
@@ -263,20 +192,15 @@ d3.csv("colors.csv").then((colors) => {
       A${ l.c2 } ${ l.c2 } 90 0 0 ${ l.xb+l.c2 } ${ l.ys }
       L${ l.xs } ${ l.ys }`
     ).join("");
-    
-    append_path(d, color_scale(b.id) === "#FFFFFF" ? "gainsboro" : "white", 5)
-    append_path(d, color_scale(b.id), 2)
+
+    append_path(d, "white", 5)
+    append_path(d, "black", 2)
   })
 
   nodes.map(n => {
     let xy1 = [n.x, n.y-n.height/2]
     let xy2 = [n.x, n.y+n.height/2]
-    append_line(xy1, xy2, "black", 8)
-    append_line(xy1, xy2, "white", 4)
-
-    let xy = [n.x+4, n.y-n.height/2-4]
-    append_text(xy, n.id, "white", 2)
-    append_text(xy, n.id, "black", 0)
+    append_node(xy1, xy2, n.id, color_scale(color_key(n.id)))
   })
 
 })
