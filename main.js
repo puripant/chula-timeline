@@ -1,5 +1,5 @@
 const margins = { top: 40, bottom: 40, left: 40, right: 150 }
-const width = 1000
+const width = 800
 const height = 500
 const key = (key) => key.split(" ")[0]
 
