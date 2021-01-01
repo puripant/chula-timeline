@@ -1,6 +1,6 @@
-const margins = { top: 40, bottom: 20, left: 20, right: 200 }
+const margins = { top: 40, bottom: 40, left: 40, right: 150 }
 const width = 1000
-const height = 800
+const height = 500
 const key = (key) => key.split(" ")[0]
 
 d3.csv("data.csv").then((data) => {
@@ -12,8 +12,8 @@ d3.csv("colors.csv").then((colors) => {
   let x_scale = d3.scaleLinear(d3.extent(data, d => +d.year), [margins.left, margins.left + width])
     .unknown(margins.left)
 
-  let faculties = data.map(d => [key(d.from), key(d.to)]).flat()
-  let y_scale = d3.scalePoint([...new Set(faculties)], [margins.top, margins.top + height])
+  let faculties = colors.map(d => d.faculty) //[...new Set(data.map(d => [key(d.from), key(d.to)]).flat())]
+  let y_scale = d3.scalePoint(faculties, [margins.top, margins.top + height])
 
   data.sort((a, b) => +a.year - +b.year)
   data = Array.from(d3.group(data, d => d.year), ([key, value]) => value)
@@ -98,7 +98,7 @@ d3.csv("colors.csv").then((colors) => {
   const node_height = 22
   const metro_d = 4
 
-  nodes.forEach(n => n.height = (Math.max(1, n.bundles.length)-1)*metro_d)
+  nodes.forEach(n => n.height = 0) //(Math.max(1, n.bundles.length)-1)*metro_d)
 
   levels.forEach(l => {
     l.forEach((n, i) => {
@@ -118,7 +118,7 @@ d3.csv("colors.csv").then((colors) => {
     
   links.forEach(l => {
     l.xt = l.target.x
-    l.yt = l.target.y + l.target.bundles_index[l.bundle.id].i*metro_d - l.target.bundles.length*metro_d/2 + metro_d/2
+    l.yt = l.target.y // + l.target.bundles_index[l.bundle.id].i*metro_d - l.target.bundles.length*metro_d/2 + metro_d/2
     l.xs = l.source.x
     l.ys = l.source.y
   })
@@ -158,11 +158,11 @@ d3.csv("colors.csv").then((colors) => {
       .style("fill", text_color ? text_color : "black")
       .text(text)
   }
-  let append_node = (xy1, xy2, text, color) => {
+  let append_node = (xy1, xy2, text, rightmost, color) => {
     append_line(xy1, xy2, color === "#FFFFFF" ? "gainsboro" : "white", 12)
     append_line(xy1, xy2, color, 8)
-    append_text([xy1[0]+6, xy1[1]-4], text, "white", 3)
-    append_text([xy1[0]+6, xy1[1]-4], text, "black", 0)
+    append_text([xy1[0]+6, xy1[1] + (rightmost ? 2 : -4)], text, "white", 3)
+    append_text([xy1[0]+6, xy1[1] + (rightmost ? 2 : -4)], text, "black", 0)
   }
 
   const x_2475 = x_scale(2475)
@@ -182,7 +182,7 @@ d3.csv("colors.csv").then((colors) => {
   nodes.map(n => {
     let xy1 = [n.x, n.y-n.height/2]
     let xy2 = [n.x, n.y+n.height/2]
-    append_node(xy1, xy2, key(n.id), color_scale(key(n.id)))
+    append_node(xy1, xy2, key(n.id), n.id.slice(-10) === "(ปัจจุบัน)", color_scale(key(n.id)))
   })
 
 })
